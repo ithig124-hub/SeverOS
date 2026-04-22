@@ -1,8 +1,0 @@
-{
-    "id": "globe",
-    "name": "3D Globe",
-    "icon": "🌍",
-    "description": "Interactive 3D Earth with pins & flight data",
-    "category": "exploration",
-    "color": "#2563eb"
-}

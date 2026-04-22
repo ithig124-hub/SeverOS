@@ -1,8 +1,0 @@
-{
-    "id": "tracking",
-    "name": "GPS Tracker",
-    "icon": "📍",
-    "description": "GPS path tracking & activity logging",
-    "category": "exploration",
-    "color": "#14b8a6"
-}

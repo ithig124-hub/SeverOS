@@ -1,8 +1,0 @@
-{
-    "id": "dashboard",
-    "name": "Smart Dashboard",
-    "icon": "📊",
-    "description": "Widgets: weather, calendar, quick links",
-    "category": "utility",
-    "color": "#06b6d4"
-}

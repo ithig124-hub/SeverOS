@@ -1,8 +1,0 @@
-{
-    "id": "alerts",
-    "name": "Alert System",
-    "icon": "🔔",
-    "description": "Central notification hub with severity levels",
-    "category": "pro-suite",
-    "color": "#ef4444"
-}

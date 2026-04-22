@@ -1,8 +1,0 @@
-{
-    "id": "filemanager",
-    "name": "File Manager",
-    "icon": "📁",
-    "description": "Browse & manage server files",
-    "category": "system",
-    "color": "#64748b"
-}
