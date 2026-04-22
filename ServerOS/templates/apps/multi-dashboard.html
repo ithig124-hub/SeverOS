@@ -1,0 +1,186 @@
+{% extends "app_base.html" %}
+{% block head %}
+<style>
+.md-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+    max-width: 1100px;
+}
+.md-card {
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--glass-radius);
+    box-shadow: var(--glass-shadow);
+    padding: 20px;
+    transition: border-color var(--transition-fast), box-shadow var(--transition);
+    animation: mdCardIn 0.5s cubic-bezier(.16,1,.3,1) both;
+}
+.md-card:nth-child(1) { animation-delay: 0.1s; }
+.md-card:nth-child(2) { animation-delay: 0.2s; }
+.md-card:nth-child(3) { animation-delay: 0.3s; }
+.md-card:nth-child(4) { animation-delay: 0.4s; }
+@keyframes mdCardIn {
+    from { opacity: 0; transform: translateY(20px) scale(0.97); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.md-card:hover { border-color: var(--glass-hover); box-shadow: var(--glass-shadow), var(--glass-glow); }
+.md-card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+.md-card-icon { font-size: 24px; }
+.md-card-title { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+.md-card-subtitle { font-size: 11px; color: var(--text-secondary); }
+
+/* Weather widget */
+.wx-main { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
+.wx-temp { font-size: 42px; font-weight: 300; line-height: 1; }
+.wx-condition { font-size: 13px; color: var(--text-secondary); }
+.wx-detail { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
+.wx-icon { font-size: 48px; }
+.wx-forecast { display: flex; gap: 8px; justify-content: space-between; }
+.wx-day { text-align: center; flex: 1; padding: 8px 4px; border-radius: 8px; background: rgba(255,255,255,0.04); }
+.wx-day-name { font-size: 11px; font-weight: 600; color: var(--text-secondary); }
+.wx-day-icon { font-size: 18px; margin: 4px 0; }
+.wx-day-temps { font-size: 11px; color: var(--text-secondary); }
+
+/* Stocks widget */
+.stk-indices { display: flex; gap: 10px; margin-bottom: 14px; }
+.stk-index { flex: 1; padding: 8px; border-radius: 8px; background: rgba(255,255,255,0.04); text-align: center; }
+.stk-index-name { font-size: 10px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+.stk-index-val { font-size: 14px; font-weight: 600; margin-top: 2px; }
+.stk-index-chg { font-size: 11px; margin-top: 2px; }
+.stk-list { display: flex; flex-direction: column; gap: 0; }
+.stk-row { display: flex; align-items: center; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.04); font-size: 13px; }
+.stk-row:last-child { border-bottom: none; }
+.stk-sym { font-weight: 600; width: 60px; }
+.stk-name { flex: 1; color: var(--text-secondary); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stk-price { font-weight: 600; width: 80px; text-align: right; }
+.stk-chg { width: 80px; text-align: right; font-size: 12px; font-weight: 500; }
+.up { color: #22c55e; }
+.down { color: #ef4444; }
+
+/* System stats widget */
+.sys-metric { margin-bottom: 14px; }
+.sys-metric:last-child { margin-bottom: 0; }
+.sys-metric-header { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 6px; }
+.sys-metric-label { font-weight: 500; color: var(--text-secondary); }
+.sys-metric-value { font-weight: 600; }
+.sys-bar { height: 8px; border-radius: 4px; background: rgba(255,255,255,0.08); overflow: hidden; }
+.sys-fill { height: 100%; border-radius: 4px; transition: width 0.5s ease; }
+.sys-uptime { text-align: center; margin-top: 16px; padding: 10px; border-radius: 8px; background: rgba(255,255,255,0.04); font-size: 12px; color: var(--text-secondary); }
+.sys-uptime strong { color: var(--text-primary); font-size: 16px; }
+
+/* Network widget */
+.net-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+.net-stat { padding: 10px; border-radius: 8px; background: rgba(255,255,255,0.04); text-align: center; }
+.net-stat-val { font-size: 16px; font-weight: 600; }
+.net-stat-label { font-size: 10px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+.net-ifaces { display: flex; flex-direction: column; gap: 6px; }
+.net-iface { display: flex; justify-content: space-between; align-items: center; padding: 6px 10px; border-radius: 6px; background: rgba(255,255,255,0.03); font-size: 12px; }
+.net-iface-name { font-weight: 600; }
+.net-iface-ip { color: var(--text-secondary); font-family: 'SF Mono','Fira Code',monospace; font-size: 11px; }
+.net-iface-status { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; flex-shrink: 0; }
+.net-iface-status.down { background: #ef4444; }
+
+/* Refresh badge */
+.md-refresh { font-size: 10px; color: var(--text-tertiary); margin-left: auto; }
+
+@media (max-width: 768px) {
+    .md-grid { grid-template-columns: 1fr; }
+    .wx-forecast { flex-wrap: wrap; }
+    .stk-indices { flex-wrap: wrap; }
+}
+@media (min-width: 1024px) {
+    .md-grid { grid-template-columns: repeat(2, 1fr); }
+}
+</style>
+{% endblock %}
+{% block content %}
+<div class="md-grid" id="mdGrid">
+    <div class="md-card" id="weatherCard">
+        <div class="md-card-header"><span class="md-card-icon">⛅</span><div><div class="md-card-title">Weather</div><div class="md-card-subtitle">Loading...</div></div><span class="md-refresh" id="wxRefresh"></span></div>
+        <div style="text-align:center;padding:30px 0;"><div style="font-size:48px;">⛅</div><div style="margin-top:8px;color:var(--text-secondary)">Fetching weather data...</div></div>
+    </div>
+    <div class="md-card" id="stocksCard">
+        <div class="md-card-header"><span class="md-card-icon">📈</span><div><div class="md-card-title">Markets</div><div class="md-card-subtitle">Loading...</div></div><span class="md-refresh" id="stkRefresh"></span></div>
+        <div style="text-align:center;padding:30px 0;color:var(--text-secondary)">Fetching market data...</div>
+    </div>
+    <div class="md-card" id="systemCard">
+        <div class="md-card-header"><span class="md-card-icon">💻</span><div><div class="md-card-title">System Stats</div><div class="md-card-subtitle">Loading...</div></div><span class="md-refresh" id="sysRefresh"></span></div>
+        <div style="text-align:center;padding:30px 0;color:var(--text-secondary)">Fetching system data...</div>
+    </div>
+    <div class="md-card" id="networkCard">
+        <div class="md-card-header"><span class="md-card-icon">🌐</span><div><div class="md-card-title">Network</div><div class="md-card-subtitle">Loading...</div></div><span class="md-refresh" id="netRefresh"></span></div>
+        <div style="text-align:center;padding:30px 0;color:var(--text-secondary)">Fetching network data...</div>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function(){
+    function fmtBytes(b){if(b<1024)return b+'B';if(b<1048576)return(b/1024).toFixed(1)+'KB';if(b<1073741824)return(b/1048576).toFixed(1)+'MB';return(b/1073741824).toFixed(2)+'GB';}
+    function barColor(p){return p>85?'#ef4444':p>60?'#f59e0b':'#22c55e';}
+    function chgClass(v){return v>=0?'up':'down';}
+    function chgSign(v){return v>=0?'+'+v:v;}
+
+    function loadWeather(){
+        fetch('/app/multi-dashboard/api/dashboard/weather').then(r=>r.json()).then(d=>{
+            var fc=d.forecast.map(f=>'<div class="wx-day"><div class="wx-day-name">'+f.day+'</div><div class="wx-day-icon">'+f.icon+'</div><div class="wx-day-temps">'+f.high_c+'° / '+f.low_c+'°</div></div>').join('');
+            document.getElementById('weatherCard').innerHTML=
+                '<div class="md-card-header"><span class="md-card-icon">⛅</span><div><div class="md-card-title">Weather</div><div class="md-card-subtitle">'+d.location+'</div></div></div>'+
+                '<div class="wx-main"><div class="wx-icon">'+d.icon+'</div><div><div class="wx-temp">'+d.temperature_c+'°</div><div class="wx-condition">'+d.condition+'</div><div class="wx-detail">Feels like '+d.feels_like_c+'° · Humidity '+d.humidity+'% · Wind '+d.wind_speed_kmh+' km/h '+d.wind_direction+'</div></div></div>'+
+                '<div class="wx-forecast">'+fc+'</div>';
+        }).catch(function(){});
+    }
+
+    function loadStocks(){
+        fetch('/app/multi-dashboard/api/dashboard/stocks').then(r=>r.json()).then(d=>{
+            var idx=d.indices.map(i=>'<div class="stk-index"><div class="stk-index-name">'+i.name+'</div><div class="stk-index-val">'+i.value.toLocaleString()+'</div><div class="stk-index-chg '+chgClass(i.change_pct)+'">'+chgSign(i.change_pct.toFixed(2))+'%</div></div>').join('');
+            var rows=d.tickers.map(t=>'<div class="stk-row"><span class="stk-sym">'+t.symbol+'</span><span class="stk-name">'+t.name+'</span><span class="stk-price">$'+t.price.toFixed(2)+'</span><span class="stk-chg '+chgClass(t.change_pct)+'">'+chgSign(t.change_pct.toFixed(2))+'%</span></div>').join('');
+            document.getElementById('stocksCard').innerHTML=
+                '<div class="md-card-header"><span class="md-card-icon">📈</span><div><div class="md-card-title">Markets</div><div class="md-card-subtitle">Status: '+d.market_status+'</div></div></div>'+
+                '<div class="stk-indices">'+idx+'</div>'+
+                '<div class="stk-list">'+rows+'</div>';
+        }).catch(function(){});
+    }
+
+    function loadSystem(){
+        fetch('/app/multi-dashboard/api/dashboard/system').then(r=>r.json()).then(d=>{
+            document.getElementById('systemCard').innerHTML=
+                '<div class="md-card-header"><span class="md-card-icon">💻</span><div><div class="md-card-title">System Stats</div><div class="md-card-subtitle">'+d.cpu_count+' cores · '+d.ram_total_gb+' GB RAM</div></div></div>'+
+                '<div class="sys-metric"><div class="sys-metric-header"><span class="sys-metric-label">CPU</span><span class="sys-metric-value" style="color:'+barColor(d.cpu_percent)+'">'+d.cpu_percent+'%</span></div><div class="sys-bar"><div class="sys-fill" style="width:'+d.cpu_percent+'%;background:'+barColor(d.cpu_percent)+'"></div></div></div>'+
+                '<div class="sys-metric"><div class="sys-metric-header"><span class="sys-metric-label">RAM</span><span class="sys-metric-value" style="color:'+barColor(d.ram_percent)+'">'+d.ram_used_gb+'GB / '+d.ram_total_gb+'GB</span></div><div class="sys-bar"><div class="sys-fill" style="width:'+d.ram_percent+'%;background:'+barColor(d.ram_percent)+'"></div></div></div>'+
+                '<div class="sys-metric"><div class="sys-metric-header"><span class="sys-metric-label">Disk</span><span class="sys-metric-value" style="color:'+barColor(d.disk_percent)+'">'+d.disk_used_gb+'GB / '+d.disk_total_gb+'GB</span></div><div class="sys-bar"><div class="sys-fill" style="width:'+d.disk_percent+'%;background:'+barColor(d.disk_percent)+'"></div></div></div>'+
+                '<div class="sys-uptime">Uptime<br><strong>'+d.uptime+'</strong></div>';
+        }).catch(function(){});
+    }
+
+    function loadNetwork(){
+        fetch('/app/multi-dashboard/api/dashboard/network').then(r=>r.json()).then(d=>{
+            var stats='<div class="net-stats">'+
+                '<div class="net-stat"><div class="net-stat-val">'+fmtBytes(d.bytes_sent)+'</div><div class="net-stat-label">Sent</div></div>'+
+                '<div class="net-stat"><div class="net-stat-val">'+fmtBytes(d.bytes_recv)+'</div><div class="net-stat-label">Received</div></div>'+
+                '<div class="net-stat"><div class="net-stat-val">'+d.active_connections+'</div><div class="net-stat-label">Connections</div></div>'+
+                '<div class="net-stat"><div class="net-stat-val">'+Object.keys(d.interfaces).length+'</div><div class="net-stat-label">Interfaces</div></div>'+
+                '</div>';
+            var ifaces='<div class="net-ifaces">';
+            for(var name in d.interfaces){
+                var s=d.interface_stats[name]||{};
+                ifaces+='<div class="net-iface"><span class="net-iface-name">'+name+'</span><span class="net-iface-ip">'+d.interfaces[name]+'</span><span class="net-iface-status'+(s.is_up?'':' down')+'"></span></div>';
+            }
+            ifaces+='</div>';
+            document.getElementById('networkCard').innerHTML=
+                '<div class="md-card-header"><span class="md-card-icon">🌐</span><div><div class="md-card-title">Network</div><div class="md-card-subtitle">'+Object.keys(d.interfaces).length+' interfaces active</div></div></div>'+
+                stats+ifaces;
+        }).catch(function(){});
+    }
+
+    loadWeather(); loadStocks(); loadSystem(); loadNetwork();
+    setInterval(loadWeather, 30000);
+    setInterval(loadStocks, 30000);
+    setInterval(loadSystem, 5000);
+    setInterval(loadNetwork, 15000);
+})();
+</script>
+{% endblock %}

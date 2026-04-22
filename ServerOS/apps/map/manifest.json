@@ -1,0 +1,8 @@
+{
+    "id": "map",
+    "name": "Map Explorer",
+    "icon": "🗺️",
+    "description": "Interactive maps with routing & pins",
+    "category": "exploration",
+    "color": "#10b981"
+}

@@ -1,0 +1,73 @@
+{% extends "app_base.html" %}
+{% block head %}
+<style>
+#globe-container { width: 100%; height: calc(100vh - 120px); position: relative; border-radius: 18px; overflow: hidden; background: rgba(0,0,0,0.4); }
+.globe-controls { position: absolute; top: 16px; right: 16px; display: flex; flex-direction: column; gap: 8px; z-index: 10; }
+.globe-controls button { padding: 8px 16px; border: 1px solid rgba(255,255,255,0.15); border-radius: 10px; background: rgba(0,0,0,0.5); backdrop-filter: blur(10px); color: #fff; cursor: pointer; font-size: 13px; transition: 0.2s; }
+.globe-controls button:hover { background: rgba(255,255,255,0.15); }
+.globe-info { position: absolute; bottom: 16px; left: 16px; background: rgba(0,0,0,0.6); backdrop-filter: blur(10px); border-radius: 12px; padding: 12px 18px; font-size: 12px; color: rgba(255,255,255,0.8); z-index: 10; }
+.pin-list { position: absolute; top: 16px; left: 16px; background: rgba(0,0,0,0.6); backdrop-filter: blur(10px); border-radius: 12px; padding: 14px; max-height: 300px; overflow-y: auto; z-index: 10; min-width: 200px; }
+.pin-list h3 { font-size: 13px; margin-bottom: 8px; color: #818cf8; }
+.pin-item { padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.08); font-size: 12px; cursor: pointer; transition: 0.2s; }
+.pin-item:hover { color: #818cf8; }
+</style>
+{% endblock %}
+{% block content %}
+<div id="globe-container">
+    <div class="pin-list" id="pinList">
+        <h3>📌 Saved Pins</h3>
+        <div id="pinItems">Click globe to add pins</div>
+    </div>
+    <div class="globe-controls">
+        <button onclick="toggleAutoRotate()">⟳ Auto Rotate</button>
+        <button onclick="resetView()">🏠 Reset View</button>
+        <button onclick="toggleLabels()">🏷 Labels</button>
+    </div>
+    <div class="globe-info" id="globeInfo">Hover for coordinates</div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/globe.gl@2.31.0/dist/globe.gl.min.js"></script>
+<script>
+(function(){
+    const container = document.getElementById('globe-container');
+    const globe = Globe()
+        .globeImageUrl('https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg')
+        .bumpImageUrl('https://unpkg.com/three-globe/example/img/earth-topology.png')
+        .backgroundImageUrl('https://unpkg.com/three-globe/example/img/night-sky.png')
+        .atmosphereColor('#6366f1')
+        .atmosphereAltitude(0.2)
+        .pointOfView({ lat: 20, lng: 0, altitude: 2.5 })
+        (container);
+    globe.controls().autoRotate = true;
+    globe.controls().autoRotateSpeed = 0.5;
+    const pins = JSON.parse(localStorage.getItem('serveros_globe_pins') || '[]');
+    const labels = [{lat:48.8566,lng:2.3522,text:'Paris',size:0.8},{lat:40.7128,lng:-74.006,text:'New York',size:0.8},{lat:35.6762,lng:139.6503,text:'Tokyo',size:0.8},{lat:-33.8688,lng:151.2093,text:'Sydney',size:0.8},{lat:51.5074,lng:-0.1278,text:'London',size:0.8}];
+    let showLabels = true;
+    function renderLabels(){ globe.labelsData(showLabels ? labels : []); }
+    globe.labelText('text').labelSize('size').labelColor(()=>'rgba(255,255,255,0.85)').labelDotRadius(0.4).labelAltitude(0.01);
+    renderLabels();
+    function renderPins(){
+        globe.pointsData(pins).pointAltitude(0.04).pointColor(()=>'#f59e0b').pointRadius(0.3);
+        const el = document.getElementById('pinItems');
+        if(pins.length===0){ el.innerHTML='Click globe to add pins'; return; }
+        el.innerHTML = pins.map((p,i)=>`<div class="pin-item" onclick="flyTo(${p.lat},${p.lng})">${p.label||'Pin '+(i+1)} (${p.lat.toFixed(2)}, ${p.lng.toFixed(2)})</div>`).join('');
+        localStorage.setItem('serveros_globe_pins', JSON.stringify(pins));
+    }
+    renderPins();
+    globe.onGlobeClick(({lat,lng})=>{
+        const label = prompt('Pin label:', 'Pin '+(pins.length+1));
+        if(label!==null){ pins.push({lat,lng,label}); renderPins(); }
+    });
+    globe.onGlobeHover(coords=>{
+        if(coords.lat!==undefined) document.getElementById('globeInfo').textContent='Lat: '+coords.lat.toFixed(4)+' | Lng: '+coords.lng.toFixed(4);
+    });
+    window.flyTo = (lat,lng)=>{ globe.pointOfView({lat,lng,altitude:1.5},1000); };
+    window.toggleAutoRotate = ()=>{ globe.controls().autoRotate = !globe.controls().autoRotate; };
+    window.resetView = ()=>{ globe.pointOfView({lat:20,lng:0,altitude:2.5},1000); };
+    window.toggleLabels = ()=>{ showLabels=!showLabels; renderLabels(); };
+    window.addEventListener('resize',()=>{ globe.width(container.offsetWidth); globe.height(container.offsetHeight); });
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,8 @@
+{
+    "id": "wallpaper",
+    "name": "Wallpaper Manager",
+    "icon": "🎨",
+    "description": "Change your dashboard background",
+    "category": "customization",
+    "color": "#a855f7"
+}

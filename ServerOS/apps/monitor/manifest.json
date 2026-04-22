@@ -1,0 +1,8 @@
+{
+    "id": "monitor",
+    "name": "System Monitor",
+    "icon": "📈",
+    "description": "Real CPU, RAM, Disk & Temperature stats",
+    "category": "system",
+    "color": "#22c55e"
+}

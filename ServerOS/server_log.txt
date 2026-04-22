@@ -1,0 +1,9 @@
+
+🖥️  ServerOS starting...
+   Found 12 apps: dashboard, filemanager, globe, library, map, monitor, notes, search, snackscout, tracking, wallpaper, worldclock
+   Dashboard: http://0.0.0.0:5000
+
+ * Serving Flask app 'server'
+ * Debug mode: on
+Address already in use
+Port 5000 is in use by another program. Either identify and stop that program, or start the server with a different port.

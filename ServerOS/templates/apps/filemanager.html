@@ -1,0 +1,57 @@
+{% extends "app_base.html" %}
+{% block head %}
+<style>
+.fm-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; height: calc(100vh - 130px); }
+.fm-browser { background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: var(--radius); padding: 16px; overflow-y: auto; }
+.fm-viewer { background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: var(--radius); padding: 16px; overflow-y: auto; }
+.fm-path { font-size: 12px; color: var(--accent-light); margin-bottom: 12px; padding: 8px 12px; background: rgba(255,255,255,0.04); border-radius: 8px; word-break: break-all; }
+.fm-item { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 10px; cursor: pointer; font-size: 13px; transition: 0.15s; }
+.fm-item:hover { background: rgba(255,255,255,0.08); }
+.fm-icon { font-size: 18px; min-width: 24px; text-align: center; }
+.fm-name { flex: 1; }
+.fm-size { font-size: 11px; color: var(--text-secondary); }
+.fm-content { font-family: 'Courier New', monospace; font-size: 12px; line-height: 1.6; white-space: pre-wrap; color: rgba(255,255,255,0.8); background: rgba(0,0,0,0.3); border-radius: 10px; padding: 14px; min-height: 200px; max-height: calc(100vh - 240px); overflow-y: auto; }
+@media(max-width:768px){ .fm-layout { grid-template-columns: 1fr; } }
+</style>
+{% endblock %}
+{% block content %}
+<div class="fm-layout">
+    <div class="fm-browser">
+        <h3 style="font-size:14px;margin-bottom:10px;">📂 Files</h3>
+        <div class="fm-path" id="fmPath"></div>
+        <div id="fmList"></div>
+    </div>
+    <div class="fm-viewer">
+        <h3 style="font-size:14px;margin-bottom:10px;">📄 File Viewer</h3>
+        <div class="fm-content" id="fmContent">Select a file to view its contents</div>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function(){
+    function fmtSize(b){ if(b<1024)return b+'B'; if(b<1048576)return(b/1024).toFixed(1)+'KB'; if(b<1073741824)return(b/1048576).toFixed(1)+'MB'; return(b/1073741824).toFixed(2)+'GB'; }
+    function navigate(path){
+        fetch('/app/filemanager/api/ls?path='+encodeURIComponent(path)).then(r=>r.json()).then(d=>{
+            document.getElementById('fmPath').textContent = d.path;
+            let html = '';
+            if(d.parent!==d.path) html += `<div class="fm-item" onclick="navigate('${d.parent.replace(/'/g,"\\'")}')"><span class="fm-icon">⬆️</span><span class="fm-name">..</span><span class="fm-size"></span></div>`;
+            d.items.forEach(i=>{
+                const icon = i.is_dir ? '📁' : (i.name.match(/\.(py|js|ts)$/)?'📜':i.name.match(/\.(md|txt)$/)?'📄':i.name.match(/\.(jpg|png|gif)$/)?'🖼':'📋');
+                if(i.is_dir) html += `<div class="fm-item" onclick="navigate('${i.path.replace(/'/g,"\\'")}')"><span class="fm-icon">${icon}</span><span class="fm-name">${i.name}</span><span class="fm-size"></span></div>`;
+                else html += `<div class="fm-item" onclick="viewFile('${i.path.replace(/'/g,"\\'")}')"><span class="fm-icon">${icon}</span><span class="fm-name">${i.name}</span><span class="fm-size">${fmtSize(i.size)}</span></div>`;
+            });
+            document.getElementById('fmList').innerHTML = html;
+        });
+    }
+    window.navigate = navigate;
+    window.viewFile = path=>{
+        fetch('/app/filemanager/api/read?path='+encodeURIComponent(path)).then(r=>r.json()).then(d=>{
+            if(d.error) document.getElementById('fmContent').textContent='Error: '+d.error;
+            else document.getElementById('fmContent').textContent=d.content;
+        });
+    };
+    navigate('~');
+})();
+</script>
+{% endblock %}
