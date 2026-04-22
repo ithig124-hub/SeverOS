@@ -1,0 +1,8 @@
+{
+    "id": "automation",
+    "name": "Automation Engine",
+    "icon": "⚡",
+    "description": "Rule engine: IF event THEN action automation",
+    "category": "pro-suite",
+    "color": "#8b5cf6"
+}

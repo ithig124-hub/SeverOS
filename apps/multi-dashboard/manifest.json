@@ -1,0 +1,8 @@
+{
+    "id": "multi-dashboard",
+    "name": "Multi-Source Dashboard",
+    "icon": "📡",
+    "description": "Weather, stocks, system stats & network in one view",
+    "category": "pro-suite",
+    "color": "#0ea5e9"
+}

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ manifest.name }} — ServerOS</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    {% block head %}{% endblock %}
+</head>
+<body>
+    <div id="bg-layer"></div>
+    <div class="app-page">
+        <div class="app-topbar">
+            <a href="/" class="back-btn" id="appBackBtn">← Dashboard</a>
+            <span class="app-title">{{ manifest.icon }} {{ manifest.name }}</span>
+        </div>
+        <div class="app-body">
+            {% block content %}{% endblock %}
+        </div>
+    </div>
+    <script>
+    (function() {
+        var backBtn = document.getElementById('appBackBtn');
+        if (backBtn && window.parent !== window) {
+            backBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                try {
+                    window.parent.postMessage({ type: 'serveros-close-app' }, '*');
+                } catch(err) {
+                    window.location.href = '/';
+                }
+            });
+        }
+    })();
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

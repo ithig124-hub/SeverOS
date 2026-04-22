@@ -1,0 +1,8 @@
+{
+    "id": "library",
+    "name": "Library",
+    "icon": "📚",
+    "description": "Digital archive with Internet Archive search",
+    "category": "productivity",
+    "color": "#8b5cf6"
+}

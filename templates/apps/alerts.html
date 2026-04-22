@@ -1,0 +1,194 @@
+{% extends "app_base.html" %}
+{% block head %}
+<style>
+.alerts-container { max-width: 800px; }
+.alerts-header { display: flex; align-items: center; gap: 14px; margin-bottom: 20px; flex-wrap: wrap; }
+.alerts-counts { display: flex; gap: 8px; flex: 1; }
+.alert-count-badge {
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px 14px; border-radius: 20px;
+    background: var(--glass-bg); backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border); font-size: 12px; font-weight: 600;
+    cursor: pointer; transition: all var(--transition-fast);
+}
+.alert-count-badge:hover { border-color: var(--glass-hover); transform: scale(1.05); }
+.alert-count-badge.active { border-color: rgba(255,255,255,0.25); background: rgba(255,255,255,0.1); }
+.alert-count-badge .badge-dot { width: 8px; height: 8px; border-radius: 50%; }
+.badge-critical .badge-dot { background: #ef4444; }
+.badge-warning .badge-dot { background: #f59e0b; }
+.badge-info .badge-dot { background: #3b82f6; }
+.alerts-actions { display: flex; gap: 8px; }
+.alert-action-btn {
+    padding: 7px 14px; border-radius: 8px;
+    background: rgba(255,255,255,0.06); border: 1px solid var(--glass-border);
+    color: var(--text-primary); font-size: 12px; font-weight: 500;
+    cursor: pointer; transition: all var(--transition-fast);
+}
+.alert-action-btn:hover { background: rgba(255,255,255,0.12); border-color: var(--glass-hover); }
+.alert-action-btn.danger { color: #ef4444; border-color: rgba(239,68,68,0.2); }
+.alert-action-btn.danger:hover { background: rgba(239,68,68,0.1); }
+
+.alert-list { display: flex; flex-direction: column; gap: 10px; }
+.alert-item {
+    display: flex; gap: 14px; padding: 16px;
+    background: var(--glass-bg); backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border); border-radius: var(--glass-radius);
+    box-shadow: var(--glass-shadow); transition: all var(--transition-fast);
+    animation: alertSlide 0.4s cubic-bezier(.16,1,.3,1) both;
+}
+.alert-item:hover { border-color: var(--glass-hover); transform: translateX(4px); }
+.alert-item.unread { border-left: 3px solid; }
+.alert-item.unread.severity-critical { border-left-color: #ef4444; }
+.alert-item.unread.severity-warning { border-left-color: #f59e0b; }
+.alert-item.unread.severity-info { border-left-color: #3b82f6; }
+@keyframes alertSlide { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
+
+.alert-severity-icon { font-size: 24px; flex-shrink: 0; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 8px; }
+.severity-critical .alert-severity-icon { background: rgba(239,68,68,0.15); }
+.severity-warning .alert-severity-icon { background: rgba(245,158,11,0.15); }
+.severity-info .alert-severity-icon { background: rgba(59,130,246,0.15); }
+.alert-content { flex: 1; min-width: 0; }
+.alert-title { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+.alert-message { font-size: 12px; color: var(--text-secondary); line-height: 1.5; }
+.alert-meta { display: flex; gap: 12px; margin-top: 8px; font-size: 11px; color: var(--text-tertiary); }
+.alert-dismiss {
+    flex-shrink: 0; padding: 6px; border-radius: 6px; cursor: pointer;
+    color: var(--text-tertiary); transition: all var(--transition-fast); align-self: flex-start;
+}
+.alert-dismiss:hover { background: rgba(255,255,255,0.08); color: var(--text-primary); }
+.alert-empty { text-align: center; padding: 60px 20px; color: var(--text-tertiary); font-size: 14px; }
+.alert-empty-icon { font-size: 48px; margin-bottom: 12px; }
+
+/* Create alert modal */
+.create-modal-overlay {
+    display: none; position: fixed; inset: 0; z-index: 200;
+    background: rgba(0,0,0,0.5); backdrop-filter: blur(8px);
+    align-items: center; justify-content: center;
+}
+.create-modal-overlay.open { display: flex; }
+.create-modal {
+    width: 90%; max-width: 440px;
+    background: var(--glass-bg); backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border); border-radius: var(--glass-radius);
+    box-shadow: var(--glass-shadow); padding: 24px;
+    animation: modalIn 0.3s cubic-bezier(.16,1,.3,1);
+}
+@keyframes modalIn { from { opacity:0; transform:translateY(-16px) scale(0.97); } to { opacity:1; transform:translateY(0) scale(1); } }
+.create-modal h3 { font-size: 16px; font-weight: 600; margin-bottom: 16px; }
+.form-group { margin-bottom: 14px; }
+.form-group label { display: block; font-size: 12px; font-weight: 500; color: var(--text-secondary); margin-bottom: 6px; }
+.form-group input, .form-group select, .form-group textarea {
+    width: 100%; padding: 10px 12px; border-radius: 8px;
+    background: rgba(255,255,255,0.06); border: 1px solid var(--glass-border);
+    color: var(--text-primary); font-size: 13px; font-family: var(--font); outline: none;
+    transition: border-color var(--transition-fast);
+}
+.form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: rgba(255,255,255,0.25); }
+.form-group textarea { resize: vertical; min-height: 60px; }
+.form-group select option { background: #1a1a2e; }
+.modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 18px; }
+.modal-btn {
+    padding: 8px 18px; border-radius: 8px; font-size: 13px; font-weight: 500;
+    cursor: pointer; transition: all var(--transition-fast); border: 1px solid transparent;
+}
+.modal-btn.cancel { background: rgba(255,255,255,0.06); color: var(--text-secondary); border-color: var(--glass-border); }
+.modal-btn.cancel:hover { background: rgba(255,255,255,0.1); }
+.modal-btn.primary { background: var(--accent); color: #fff; }
+.modal-btn.primary:hover { filter: brightness(1.15); transform: scale(1.02); }
+</style>
+{% endblock %}
+{% block content %}
+<div class="alerts-container">
+    <div class="alerts-header">
+        <div class="alerts-counts" id="alertCounts"></div>
+        <div class="alerts-actions">
+            <button class="alert-action-btn" onclick="openCreateModal()">+ New Alert</button>
+            <button class="alert-action-btn" onclick="markAllRead()">✓ Mark All Read</button>
+            <button class="alert-action-btn danger" onclick="clearAll()">🗑 Clear All</button>
+        </div>
+    </div>
+    <div class="alert-list" id="alertList">
+        <div class="alert-empty"><div class="alert-empty-icon">🔔</div>Loading alerts...</div>
+    </div>
+</div>
+
+<div class="create-modal-overlay" id="createModal">
+    <div class="create-modal">
+        <h3>🔔 Create Alert</h3>
+        <div class="form-group"><label>Severity</label><select id="newSeverity"><option value="info">ℹ️ Info</option><option value="warning">⚠️ Warning</option><option value="critical">🔴 Critical</option></select></div>
+        <div class="form-group"><label>Title</label><input id="newTitle" placeholder="Alert title..."></div>
+        <div class="form-group"><label>Message</label><textarea id="newMessage" placeholder="Description..."></textarea></div>
+        <div class="form-group"><label>Source</label><input id="newSource" placeholder="e.g., System Monitor" value="Manual"></div>
+        <div class="modal-actions">
+            <button class="modal-btn cancel" onclick="closeCreateModal()">Cancel</button>
+            <button class="modal-btn primary" onclick="submitAlert()">Create Alert</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function(){
+    var currentFilter = null;
+    var sevIcons = {critical:'🔴', warning:'⚠️', info:'ℹ️'};
+
+    function timeAgo(ts){
+        var d=Math.floor((Date.now()/1000)-ts);
+        if(d<60)return 'just now';
+        if(d<3600)return Math.floor(d/60)+'m ago';
+        if(d<86400)return Math.floor(d/3600)+'h ago';
+        return Math.floor(d/86400)+'d ago';
+    }
+
+    function loadAlerts(){
+        var url='/app/alerts/api/alerts';
+        if(currentFilter) url+='?severity='+currentFilter;
+        fetch(url).then(r=>r.json()).then(data=>{
+            renderCounts(data.counts);
+            renderAlerts(data.alerts);
+        }).catch(function(){});
+    }
+
+    function renderCounts(c){
+        var el=document.getElementById('alertCounts');
+        el.innerHTML=
+            '<div class="alert-count-badge badge-critical'+(currentFilter==='critical'?' active':'')+'" onclick="setFilter(\'critical\')"><span class="badge-dot"></span>'+c.critical+' Critical</div>'+
+            '<div class="alert-count-badge badge-warning'+(currentFilter==='warning'?' active':'')+'" onclick="setFilter(\'warning\')"><span class="badge-dot"></span>'+c.warning+' Warning</div>'+
+            '<div class="alert-count-badge badge-info'+(currentFilter==='info'?' active':'')+'" onclick="setFilter(\'info\')"><span class="badge-dot"></span>'+c.info+' Info</div>'+
+            '<div class="alert-count-badge'+(currentFilter===null?' active':'')+'" onclick="setFilter(null)">📋 All ('+c.unread+' unread)</div>';
+    }
+
+    function renderAlerts(alerts){
+        var el=document.getElementById('alertList');
+        if(!alerts.length){el.innerHTML='<div class="alert-empty"><div class="alert-empty-icon">✨</div>No alerts — all clear!</div>';return;}
+        el.innerHTML=alerts.map(function(a,i){
+            return '<div class="alert-item severity-'+a.severity+(a.read?'':' unread')+'" style="animation-delay:'+((i*0.05))+'s">'+
+                '<div class="alert-severity-icon">'+sevIcons[a.severity]+'</div>'+
+                '<div class="alert-content"><div class="alert-title">'+a.title+'</div><div class="alert-message">'+a.message+'</div>'+
+                '<div class="alert-meta"><span>'+a.source+'</span><span>'+timeAgo(a.timestamp)+'</span></div></div>'+
+                '<div class="alert-dismiss" onclick="dismissAlert(\''+a.id+'\')" title="Dismiss">✕</div></div>';
+        }).join('');
+    }
+
+    window.setFilter=function(f){currentFilter=f;loadAlerts();};
+    window.dismissAlert=function(id){fetch('/app/alerts/api/alerts/clear',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:'id',id:id})}).then(function(){loadAlerts();});};
+    window.markAllRead=function(){fetch('/app/alerts/api/alerts/clear',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:'read'})}).then(function(){loadAlerts();});};
+    window.clearAll=function(){if(confirm('Delete all alerts?')){fetch('/app/alerts/api/alerts/clear',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:'all'})}).then(function(){loadAlerts();});}};
+    window.openCreateModal=function(){document.getElementById('createModal').classList.add('open');};
+    window.closeCreateModal=function(){document.getElementById('createModal').classList.remove('open');};
+    window.submitAlert=function(){
+        var t=document.getElementById('newTitle').value.trim();
+        if(!t){alert('Title required');return;}
+        fetch('/app/alerts/api/alerts/create',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+            severity:document.getElementById('newSeverity').value,
+            title:t,
+            message:document.getElementById('newMessage').value.trim(),
+            source:document.getElementById('newSource').value.trim()||'Manual'
+        })}).then(function(){closeCreateModal();document.getElementById('newTitle').value='';document.getElementById('newMessage').value='';loadAlerts();});
+    };
+
+    loadAlerts();
+    setInterval(loadAlerts, 10000);
+})();
+</script>
+{% endblock %}
