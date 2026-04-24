@@ -1,1 +1,37 @@
-$(cat SeverOS_Repo/templates/apps/power.html)
+{% extends "app_base.html" %}
+
+{% block content %}
+<div style="display: flex; flex-direction: column; gap: 24px; align-items: center; justify-content: center; height: 100%;">
+    <div class="glass-panel" style="text-align: center; max-width: 400px; width: 100%;">
+        <h2 style="margin-bottom: 20px;">System Maintenance</h2>
+        <p style="color: rgba(255,255,255,0.6); margin-bottom: 24px;">Manage system updates and power.</p>
+        
+        <div style="display: grid; grid-template-columns: 1fr; gap: 16px;">
+            <button onclick="powerAction('update')" style="background: rgba(16, 185, 129, 0.2); border: 1px solid #10b981; color: #34d399; padding: 16px; border-radius: 12px; font-weight: bold; cursor: pointer;">
+                🔄 One-Click Update (Git Pull)
+            </button>
+            <div style="height: 1px; background: rgba(255,255,255,0.1); margin: 8px 0;"></div>
+            <button onclick="powerAction('reboot')" style="background: rgba(59, 130, 246, 0.2); border: 1px solid #3b82f6; color: #60a5fa; padding: 16px; border-radius: 12px; font-weight: bold; cursor: pointer;">
+                🔄 Reboot Pi
+            </button>
+            <button onclick="powerAction('shutdown')" style="background: rgba(239, 68, 68, 0.2); border: 1px solid #ef4444; color: #f87171; padding: 16px; border-radius: 12px; font-weight: bold; cursor: pointer;">
+                🛑 Safe Shutdown
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+async function powerAction(action) {
+    if (!confirm(`Are you sure you want to ${action}?`)) return;
+    
+    try {
+        const res = await fetch(`/api/power/${action}`, { method: 'POST' });
+        const data = await res.json();
+        alert(data.status || data.error);
+    } catch (e) {
+        alert("Action sent. Connection may drop.");
+    }
+}
+</script>
+{% endblock %}
