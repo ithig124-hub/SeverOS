@@ -1,0 +1,14 @@
+{
+  \"Midnight\": {
+    \"--glass-bg\": \"rgba(0, 0, 0, 0.8)\",
+    \"--accent\": \"#10b981\",
+    \"--glass-blur\": \"10px\",
+    \"--bg-base\": \"#000000\"
+  },
+  \"Cyberpunk\": {
+    \"--glass-bg\": \"rgba(255, 0, 255, 0.1)\",
+    \"--accent\": \"#f0f\",
+    \"--glass-blur\": \"15px\",
+    \"--bg-base\": \"#050005\"
+  }
+}

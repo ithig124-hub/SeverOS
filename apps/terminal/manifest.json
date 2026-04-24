@@ -1,0 +1,8 @@
+{
+    \"id\": \"terminal\",
+    \"name\": \"Terminal\",
+    \"icon\": \"📟\",
+    \"description\": \"Stateful web shell\",
+    \"category\": \"system\",
+    \"color\": \"#10b981\"
+}
