@@ -1,0 +1,1 @@
+$(cat SeverOS_Repo/apps/chem_suite/routes.py)
