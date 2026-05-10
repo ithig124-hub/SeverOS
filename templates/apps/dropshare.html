@@ -1,1 +1,144 @@
-$(cat SeverOS_Repo/templates/apps/dropshare.html)
+{% extends "app_base.html" %}
+{% block head %}
+<style>
+.ds-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; height: calc(100vh - 130px); }
+.ds-col { display: flex; flex-direction: column; gap: 14px; overflow-y: auto; }
+.ds-card { background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: var(--radius); padding: 22px; }
+.ds-card h2 { font-size: 14px; font-weight: 700; margin-bottom: 16px; }
+.drop-zone { border: 2px dashed rgba(99,102,241,0.4); border-radius: 14px; padding: 40px 20px; text-align: center; cursor: pointer; transition: 0.2s; background: rgba(99,102,241,0.04); }
+.drop-zone:hover, .drop-zone.dragover { border-color: var(--accent); background: rgba(99,102,241,0.1); }
+.drop-zone .drop-icon { font-size: 48px; margin-bottom: 12px; }
+.drop-zone .drop-text { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+.drop-zone .drop-sub { font-size: 12px; color: var(--text-secondary); }
+#fileInput { display: none; }
+.upload-progress { margin-top: 14px; display: none; }
+.progress-bar-wrap { background: rgba(255,255,255,0.06); border-radius: 8px; height: 6px; overflow: hidden; }
+.progress-bar-fill { height: 100%; background: var(--accent); border-radius: 8px; transition: width 0.3s; }
+.upload-status { font-size: 12px; color: var(--text-secondary); margin-top: 8px; text-align: center; }
+.upload-status.ok { color: #10b981; }
+.upload-status.err { color: #ef4444; }
+.file-item { background: rgba(255,255,255,0.04); border: 1px solid var(--glass-border); border-radius: 10px; padding: 12px; display: flex; align-items: center; gap: 12px; margin-bottom: 8px; transition: 0.15s; }
+.file-item:hover { background: rgba(255,255,255,0.07); }
+.file-icon { font-size: 28px; flex-shrink: 0; }
+.file-info { flex: 1; min-width: 0; }
+.file-name { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.file-meta { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
+.file-btns { display: flex; gap: 6px; flex-shrink: 0; }
+.file-btns a, .file-btns button { padding: 5px 10px; border-radius: 7px; border: 1px solid var(--glass-border); background: rgba(255,255,255,0.06); color: #fff; font-size: 11px; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; transition: 0.15s; }
+.file-btns a:hover, .file-btns button:hover { background: rgba(255,255,255,0.12); }
+.file-btns button.del { background: rgba(239,68,68,0.08); border-color: rgba(239,68,68,0.2); color: #ef4444; }
+.file-btns button.del:hover { background: rgba(239,68,68,0.18); }
+.empty-state { text-align: center; color: var(--text-secondary); padding: 40px; font-size: 13px; }
+.stats-row { display: flex; gap: 16px; flex-wrap: wrap; }
+.stat-box { flex: 1; min-width: 80px; background: rgba(255,255,255,0.04); border: 1px solid var(--glass-border); border-radius: 10px; padding: 12px; text-align: center; }
+.stat-val { font-size: 22px; font-weight: 700; }
+.stat-lbl { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
+@media(max-width:900px){ .ds-layout { grid-template-columns: 1fr; } }
+</style>
+{% endblock %}
+{% block content %}
+<div class="ds-layout">
+  <div class="ds-col">
+    <div class="ds-card">
+      <h2>📂 Drop Files Here</h2>
+      <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+        <div class="drop-icon">📂</div>
+        <div class="drop-text">Click or drag & drop files</div>
+        <div class="drop-sub">Max 200MB · Supports images, videos, audio, docs, zip</div>
+      </div>
+      <input type="file" id="fileInput" multiple onchange="handleFiles(this.files)">
+      <div class="upload-progress" id="uploadProgress">
+        <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progressFill" style="width:0%"></div></div>
+        <div class="upload-status" id="uploadStatus">Uploading...</div>
+      </div>
+    </div>
+    <div class="ds-card">
+      <h2>📊 Storage Stats</h2>
+      <div class="stats-row">
+        <div class="stat-box"><div class="stat-val" id="statCount">—</div><div class="stat-lbl">Files</div></div>
+        <div class="stat-box"><div class="stat-val" id="statSize">—</div><div class="stat-lbl">Total Size</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ds-col">
+    <div class="ds-card" style="flex:1">
+      <h2>📁 Uploaded Files</h2>
+      <div id="filesList"></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function(){
+  const extIcon={png:'🖼️',jpg:'🖼️',jpeg:'🖼️',gif:'🖼️',mp4:'🎬',mp3:'🎵',pdf:'📄',zip:'🗜️',tar:'🗜️',gz:'🗜️',docx:'📝',xlsx:'📊',csv:'📊',json:'📋',md:'📝',txt:'📄',py:'🐍',js:'⚙️'};
+
+  function getIcon(ext){ return extIcon[ext]||'📎'; }
+
+  function loadFiles(){
+    fetch('/app/dropshare/api/files').then(r=>r.json()).then(files=>{
+      const el=document.getElementById('filesList');
+      document.getElementById('statCount').textContent=files.length;
+      const totalBytes=files.reduce((s,f)=>s+f.size,0);
+      document.getElementById('statSize').textContent=humanSize(totalBytes);
+      if(!files.length){ el.innerHTML='<div class="empty-state">No files yet. Drop some above!</div>'; return; }
+      el.innerHTML=files.map(f=>`
+        <div class="file-item">
+          <div class="file-icon">${getIcon(f.ext)}</div>
+          <div class="file-info">
+            <div class="file-name" title="${f.original_name}">${f.original_name}</div>
+            <div class="file-meta">${f.size_human} · ${f.uploaded}</div>
+          </div>
+          <div class="file-btns">
+            <a href="/app/dropshare/api/download/${f.id}">⬇</a>
+            <button class="del" onclick="delFile('${f.id}')">🗑</button>
+          </div>
+        </div>`).join('');
+    });
+  }
+
+  function humanSize(b){
+    const units=['B','KB','MB','GB'];
+    for(let u of units){ if(b<1024) return b.toFixed(1)+' '+u; b/=1024; }
+    return b.toFixed(1)+' TB';
+  }
+
+  window.delFile=function(id){
+    fetch('/app/dropshare/api/files/'+id,{method:'DELETE'}).then(()=>loadFiles());
+  };
+
+  window.handleFiles=function(files){
+    if(!files||!files.length) return;
+    uploadQueue([...files], 0);
+  };
+
+  function uploadQueue(files, idx){
+    if(idx>=files.length){ document.getElementById('uploadStatus').textContent='✅ All uploads complete!'; document.getElementById('uploadStatus').className='upload-status ok'; loadFiles(); return; }
+    const f=files[idx];
+    const prog=document.getElementById('uploadProgress');
+    const fill=document.getElementById('progressFill');
+    const status=document.getElementById('uploadStatus');
+    prog.style.display='block';
+    status.className='upload-status';
+    status.textContent=`Uploading ${f.name} (${idx+1}/${files.length})...`;
+    fill.style.width='20%';
+    const fd=new FormData();
+    fd.append('file',f);
+    fetch('/app/dropshare/api/upload',{method:'POST',body:fd}).then(r=>r.json()).then(d=>{
+      fill.style.width='100%';
+      if(d.error){ status.className='upload-status err'; status.textContent='❌ '+d.error; return; }
+      setTimeout(()=>{ fill.style.width='0%'; uploadQueue(files, idx+1); }, 400);
+    });
+  }
+
+  // Drag & drop
+  const dz=document.getElementById('dropZone');
+  dz.addEventListener('dragover',e=>{ e.preventDefault(); dz.classList.add('dragover'); });
+  dz.addEventListener('dragleave',()=>dz.classList.remove('dragover'));
+  dz.addEventListener('drop',e=>{ e.preventDefault(); dz.classList.remove('dragover'); handleFiles(e.dataTransfer.files); });
+
+  loadFiles();
+})();
+</script>
+{% endblock %}
