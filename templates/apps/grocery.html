@@ -1,1 +1,160 @@
-$(cat SeverOS_Repo/templates/apps/grocery.html)
+{% extends "app_base.html" %}
+{% block head %}
+<style>
+.gr-layout { display: grid; grid-template-columns: 1fr 280px; gap: 20px; height: calc(100vh - 130px); }
+.gr-main { display: flex; flex-direction: column; gap: 14px; overflow-y: auto; }
+.gr-card { background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: var(--radius); padding: 20px; }
+.gr-card h2 { font-size: 14px; font-weight: 700; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center; }
+.gr-card h2 span { font-size: 12px; color: var(--text-secondary); font-weight: 400; }
+.gr-add-row { display: flex; gap: 8px; margin-bottom: 4px; }
+.gr-add-row input { flex: 1; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--glass-border); background: rgba(255,255,255,0.06); color: #fff; font-size: 13px; outline: none; }
+.gr-add-row input:focus { border-color: var(--accent); }
+.gr-add-row select { padding: 10px 12px; border-radius: 10px; border: 1px solid var(--glass-border); background: rgba(255,255,255,0.06); color: #fff; font-size: 13px; outline: none; cursor: pointer; }
+.gr-add-row button { padding: 10px 18px; border-radius: 10px; border: none; background: var(--accent); color: #fff; font-weight: 700; cursor: pointer; font-size: 14px; }
+.gr-items { flex: 1; overflow-y: auto; }
+.gr-cat-section { margin-bottom: 16px; }
+.gr-cat-label { font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; padding: 0 4px; }
+.gr-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; background: rgba(255,255,255,0.04); border: 1px solid var(--glass-border); margin-bottom: 6px; cursor: pointer; transition: 0.15s; }
+.gr-item:hover { background: rgba(255,255,255,0.08); }
+.gr-item.checked { opacity: 0.45; }
+.gr-checkbox { width: 18px; height: 18px; border-radius: 5px; border: 2px solid rgba(255,255,255,0.2); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 11px; transition: 0.15s; }
+.gr-item.checked .gr-checkbox { background: var(--accent); border-color: var(--accent); }
+.gr-item-name { flex: 1; font-size: 13px; }
+.gr-item.checked .gr-item-name { text-decoration: line-through; }
+.gr-item-qty { font-size: 12px; color: var(--text-secondary); }
+.gr-item-del { background: none; border: none; color: rgba(255,255,255,0.2); cursor: pointer; font-size: 14px; padding: 0; transition: 0.15s; }
+.gr-item-del:hover { color: #ef4444; }
+/* Sidebar */
+.gr-sidebar { display: flex; flex-direction: column; gap: 14px; }
+.stat-card { background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: var(--radius); padding: 16px; }
+.stat-card h3 { font-size: 12px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 14px; }
+.stat-row { display: flex; justify-content: space-between; align-items: center; padding: 7px 0; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 12px; }
+.stat-row:last-child { border-bottom: none; }
+.stat-num { font-size: 18px; font-weight: 700; }
+.clear-btn { width: 100%; padding: 9px; border-radius: 9px; border: 1px solid rgba(239,68,68,0.3); background: rgba(239,68,68,0.08); color: #ef4444; font-size: 12px; cursor: pointer; margin-top: 4px; }
+.clear-btn:hover { background: rgba(239,68,68,0.15); }
+.empty-state { text-align: center; color: var(--text-secondary); padding: 30px; font-size: 13px; }
+@media(max-width:900px){ .gr-layout { grid-template-columns: 1fr; } .gr-sidebar { flex-direction: row; flex-wrap: wrap; } }
+</style>
+{% endblock %}
+{% block content %}
+<div class="gr-layout">
+  <div class="gr-main">
+    <div class="gr-card">
+      <h2>🛒 Shopping List <span id="grCount"></span></h2>
+      <div class="gr-add-row">
+        <input type="text" id="itemName" placeholder="Add item..." onkeydown="if(event.key==='Enter') addItem()">
+        <input type="text" id="itemQty" placeholder="Qty" style="width:80px;flex:none">
+        <select id="itemCat">
+          <option value="🥦 Produce">🥦 Produce</option>
+          <option value="🥩 Meat">🥩 Meat</option>
+          <option value="🥛 Dairy">🥛 Dairy</option>
+          <option value="🍞 Bakery">🍞 Bakery</option>
+          <option value="🥫 Pantry">🥫 Pantry</option>
+          <option value="🧃 Beverages">🧃 Beverages</option>
+          <option value="🧴 Personal Care">🧴 Personal Care</option>
+          <option value="🧹 Household">🧹 Household</option>
+          <option value="❓ Other" selected>❓ Other</option>
+        </select>
+        <button onclick="addItem()">+</button>
+      </div>
+    </div>
+    <div class="gr-card" style="flex:1">
+      <div class="gr-items" id="grItems"></div>
+    </div>
+  </div>
+
+  <div class="gr-sidebar">
+    <div class="stat-card">
+      <h3>📊 Summary</h3>
+      <div class="stat-row"><span>Total Items</span><span class="stat-num" id="statTotal">0</span></div>
+      <div class="stat-row"><span>✅ Checked</span><span class="stat-num" id="statChecked">0</span></div>
+      <div class="stat-row"><span>⬜ Remaining</span><span class="stat-num" id="statRemaining">0</span></div>
+    </div>
+    <div class="stat-card">
+      <h3>⚡ Actions</h3>
+      <button class="clear-btn" onclick="clearChecked()">🗑 Remove Checked</button>
+      <button class="clear-btn" style="margin-top:6px;border-color:rgba(99,102,241,0.3);background:rgba(99,102,241,0.08);color:#818cf8" onclick="clearAll()">🧹 Clear All</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function(){
+  let items=[];
+
+  function loadItems(){
+    fetch('/app/grocery/api/grocery').then(r=>r.json()).then(d=>{ items=Array.isArray(d)?d:[]; render(); });
+  }
+
+  function render(){
+    const total=items.length;
+    const checked=items.filter(i=>i.checked).length;
+    document.getElementById('statTotal').textContent=total;
+    document.getElementById('statChecked').textContent=checked;
+    document.getElementById('statRemaining').textContent=total-checked;
+    document.getElementById('grCount').textContent=total?`(${total-checked} left)`:'';
+    const el=document.getElementById('grItems');
+    if(!total){ el.innerHTML='<div class="empty-state">📝 Your list is empty. Add items above!</div>'; return; }
+    // Group by category
+    const cats={};
+    items.forEach((item,i)=>{ const c=item.category||'❓ Other'; if(!cats[c]) cats[c]=[]; cats[c].push({...item,_idx:i}); });
+    el.innerHTML=Object.entries(cats).map(([cat,citems])=>`
+      <div class="gr-cat-section">
+        <div class="gr-cat-label">${cat}</div>
+        ${citems.map(item=>`
+          <div class="gr-item${item.checked?' checked':''}" onclick="toggleItem(${item._idx})">
+            <div class="gr-checkbox">${item.checked?'✓':''}</div>
+            <div class="gr-item-name">${item.name||''}</div>
+            ${item.qty?`<div class="gr-item-qty">${item.qty}</div>`:''}
+            <button class="gr-item-del" onclick="event.stopPropagation();delItem(${item._idx})">✕</button>
+          </div>`).join('')}
+      </div>`).join('');
+  }
+
+  window.addItem=function(){
+    const name=document.getElementById('itemName').value.trim();
+    if(!name) return;
+    const qty=document.getElementById('itemQty').value.trim();
+    const category=document.getElementById('itemCat').value;
+    const item={name,qty,category,checked:false};
+    fetch('/app/grocery/api/grocery',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(item)})
+      .then(()=>{ document.getElementById('itemName').value=''; document.getElementById('itemQty').value=''; loadItems(); });
+  };
+
+  window.toggleItem=function(idx){
+    fetch('/app/grocery/api/grocery/toggle',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({index:idx})})
+      .then(r=>r.json()).then(d=>{ items=d; render(); });
+  };
+
+  window.delItem=function(idx){
+    items.splice(idx,1);
+    fetch('/app/grocery/api/grocery',{method:'DELETE'}).then(()=>{
+      // Re-add all remaining
+      const remaining=items.slice();
+      fetch('/app/grocery/api/grocery',{method:'DELETE'}).then(()=>{
+        Promise.all(remaining.map(i=>fetch('/app/grocery/api/grocery',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(i)}))).then(()=>loadItems());
+      });
+    });
+  };
+
+  window.clearChecked=function(){
+    items=items.filter(i=>!i.checked);
+    rebuildList(items);
+  };
+
+  window.clearAll=function(){
+    fetch('/app/grocery/api/grocery',{method:'DELETE'}).then(()=>loadItems());
+  };
+
+  function rebuildList(list){
+    fetch('/app/grocery/api/grocery',{method:'DELETE'}).then(()=>{
+      Promise.all(list.map(i=>fetch('/app/grocery/api/grocery',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(i)}))).then(()=>loadItems());
+    });
+  }
+
+  loadItems();
+})();
+</script>
+{% endblock %}
