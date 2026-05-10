@@ -41,7 +41,10 @@
         else { map.removeLayer(streetLayer); satLayer.addTo(map); }
         isSat = !isSat;
     };
-    map.on('mousemove', e=>{ document.getElementById('mapCoords').textContent = `Lat: ${e.latlng.lat.toFixed(5)} | Lng: ${e.latlng.lng.toFixed(5)}`; });
+    map.on('mousemove', e=>{
+        const coords = document.getElementById('mapCoords');
+        if(coords) coords.textContent = `Lat: ${e.latlng.lat.toFixed(5)} | Lng: ${e.latlng.lng.toFixed(5)}`;
+    });
 
     const pins = JSON.parse(localStorage.getItem('serveros_map_pins') || '[]');
     const markers = [];
@@ -52,7 +55,7 @@
             markers.push(m);
         });
         const el = document.getElementById('savedPins');
-        el.innerHTML = pins.length ? pins.map((p,i)=>`<div class="saved-pin" onclick="flyPin(${p.lat},${p.lng})">${p.label} (${p.lat.toFixed(2)}, ${p.lng.toFixed(2)})</div>`).join('') : '';
+        if(el) el.innerHTML = pins.length ? pins.map((p,i)=>`<div class="saved-pin" onclick="flyPin(${p.lat},${p.lng})">${p.label} (${p.lat.toFixed(2)}, ${p.lng.toFixed(2)})</div>`).join('') : '';
         localStorage.setItem('serveros_map_pins', JSON.stringify(pins));
     }
     renderPins();
