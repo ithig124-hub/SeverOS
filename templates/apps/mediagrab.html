@@ -1,1 +1,138 @@
-$(cat SeverOS_Repo/templates/apps/mediagrab.html)
+{% extends "app_base.html" %}
+{% block head %}
+<style>
+.mg-layout { display: grid; grid-template-columns: 1fr 340px; gap: 20px; height: calc(100vh - 130px); }
+.mg-main { display: flex; flex-direction: column; gap: 16px; }
+.mg-grab-card { background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: var(--radius); padding: 24px; }
+.mg-grab-card h2 { font-size: 15px; font-weight: 700; margin-bottom: 16px; }
+.mg-url-row { display: flex; gap: 8px; margin-bottom: 12px; }
+.mg-url-row input { flex: 1; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--glass-border); background: rgba(255,255,255,0.06); color: #fff; font-size: 13px; outline: none; }
+.mg-url-row input:focus { border-color: var(--accent); }
+.mg-fmt-row { display: flex; gap: 8px; align-items: center; }
+.mg-fmt-row label { font-size: 12px; color: var(--text-secondary); }
+.mg-fmt-row select { padding: 8px 12px; border-radius: 8px; border: 1px solid var(--glass-border); background: rgba(255,255,255,0.06); color: #fff; font-size: 13px; outline: none; cursor: pointer; }
+.grab-btn { padding: 10px 22px; border-radius: 10px; border: none; background: #ef4444; color: #fff; font-weight: 700; cursor: pointer; font-size: 14px; transition: 0.2s; margin-left: auto; display: block; }
+.grab-btn:hover { background: #dc2626; }
+.mg-status { font-size: 12px; color: var(--text-secondary); margin-top: 10px; min-height: 18px; }
+.mg-status.ok { color: #10b981; }
+.mg-status.err { color: #ef4444; }
+.mg-history { background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: var(--radius); padding: 18px; flex: 1; overflow-y: auto; }
+.mg-history h3 { font-size: 13px; font-weight: 700; margin-bottom: 12px; }
+.dl-item { padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.06); display: flex; gap: 10px; align-items: flex-start; }
+.dl-item:last-child { border-bottom: none; }
+.dl-icon { font-size: 22px; flex-shrink: 0; }
+.dl-info { flex: 1; min-width: 0; }
+.dl-title { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dl-meta { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
+.dl-status { font-size: 10px; padding: 2px 8px; border-radius: 6px; display: inline-block; margin-top: 4px; }
+.dl-status.queued { background: rgba(245,158,11,0.15); color: #f59e0b; }
+.dl-status.done { background: rgba(16,185,129,0.15); color: #10b981; }
+.dl-del { background: none; border: none; color: rgba(255,255,255,0.3); cursor: pointer; font-size: 14px; padding: 0; }
+.dl-del:hover { color: #ef4444; }
+/* Info Panel */
+.mg-info { background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: var(--radius); padding: 20px; height: fit-content; }
+.mg-info h3 { font-size: 13px; font-weight: 700; margin-bottom: 14px; }
+.info-row { display: flex; gap: 10px; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.06); }
+.info-row:last-child { border-bottom: none; }
+.info-icon { font-size: 20px; }
+.info-text { font-size: 12px; color: var(--text-secondary); line-height: 1.5; }
+.empty-state { text-align: center; color: var(--text-secondary); padding: 30px; font-size: 13px; }
+@media(max-width:900px){ .mg-layout { grid-template-columns: 1fr; } }
+</style>
+{% endblock %}
+{% block content %}
+<div class="mg-layout">
+  <div class="mg-main">
+    <div class="mg-grab-card">
+      <h2>📺 Grab Media</h2>
+      <div class="mg-url-row">
+        <input type="url" id="grabUrl" placeholder="Paste YouTube or video URL...">
+      </div>
+      <div class="mg-fmt-row">
+        <label>Format:</label>
+        <select id="grabFmt">
+          <option value="mp4">MP4 (Video)</option>
+          <option value="mp3">MP3 (Audio)</option>
+          <option value="webm">WebM</option>
+          <option value="best">Best Quality</option>
+        </select>
+        <button class="grab-btn" onclick="grabMedia()">⬇ Grab</button>
+      </div>
+      <div class="mg-status" id="grabStatus"></div>
+    </div>
+    <div class="mg-history">
+      <h3>📁 Download Queue</h3>
+      <div id="dlList"></div>
+    </div>
+  </div>
+
+  <div class="mg-info">
+    <h3>ℹ️ How It Works</h3>
+    <div class="info-row">
+      <div class="info-icon">🔗</div>
+      <div class="info-text">Paste any YouTube or video URL into the box above.</div>
+    </div>
+    <div class="info-row">
+      <div class="info-icon">🎬</div>
+      <div class="info-text">Choose MP4 for video, MP3 for audio-only extraction.</div>
+    </div>
+    <div class="info-row">
+      <div class="info-icon">💾</div>
+      <div class="info-text">Downloads are queued and saved to your server's output directory via yt-dlp.</div>
+    </div>
+    <div class="info-row">
+      <div class="info-icon">📌</div>
+      <div class="info-text">Requires <code style="background:rgba(255,255,255,0.08);padding:1px 4px;border-radius:4px;font-size:11px">yt-dlp</code> installed on your server:<br><code style="background:rgba(255,255,255,0.08);padding:1px 4px;border-radius:4px;font-size:11px">pip install yt-dlp</code></div>
+    </div>
+    <div class="info-row">
+      <div class="info-icon">🔌</div>
+      <div class="info-text">Connect a USB drive and set the output path in your server config to grab directly to USB.</div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function(){
+  function loadHistory(){
+    fetch('/app/mediagrab/api/history').then(r=>r.json()).then(items=>{
+      const el=document.getElementById('dlList');
+      if(!items.length){ el.innerHTML='<div class="empty-state">No downloads yet.</div>'; return; }
+      el.innerHTML=items.map(d=>{
+        const icon=d.format==='mp3'?'🎵':'📺';
+        return `<div class="dl-item">
+          <div class="dl-icon">${icon}</div>
+          <div class="dl-info">
+            <div class="dl-title" title="${d.url}">${d.title||d.url}</div>
+            <div class="detail-meta">${d.format.toUpperCase()} · ${d.added}</div>
+            <span class="dl-status ${d.status}">${d.status}</span>
+          </div>
+          <button class="dl-del" onclick="delItem('${d.id}')">✕</button>
+        </div>`;
+      }).join('');
+    });
+  }
+
+  window.grabMedia=function(){
+    const url=document.getElementById('grabUrl').value.trim();
+    const fmt=document.getElementById('grabFmt').value;
+    const st=document.getElementById('grabStatus');
+    if(!url){ st.className='mg-status err'; st.textContent='Please enter a URL.'; return; }
+    st.className='mg-status'; st.textContent='Queuing...';
+    fetch('/app/mediagrab/api/grab',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url,format:fmt})})
+      .then(r=>r.json()).then(d=>{
+        if(d.error){ st.className='mg-status err'; st.textContent='Error: '+d.error; return; }
+        st.className='mg-status ok'; st.textContent='✅ Queued: '+d.entry.title;
+        document.getElementById('grabUrl').value='';
+        loadHistory();
+      });
+  };
+
+  window.delItem=function(id){
+    fetch('/app/mediagrab/api/history/'+id,{method:'DELETE'}).then(()=>loadHistory());
+  };
+
+  loadHistory();
+})();
+</script>
+{% endblock %}
