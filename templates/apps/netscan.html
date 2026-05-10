@@ -1,1 +1,111 @@
-$(cat SeverOS_Repo/templates/apps/netscan.html)
+{% extends "app_base.html" %}
+{% block head %}
+<style>
+.ns-layout { max-width: 800px; margin: 0 auto; }
+.ns-card { background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: var(--radius); padding: 22px; margin-bottom: 16px; }
+.ns-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+.ns-header h2 { font-size: 15px; font-weight: 700; }
+.ns-actions { display: flex; gap: 8px; }
+.ns-btn { padding: 8px 18px; border-radius: 10px; border: none; background: var(--accent); color: #fff; font-weight: 600; font-size: 13px; cursor: pointer; transition: 0.2s; }
+.ns-btn:hover { opacity: 0.85; }
+.ns-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.ns-stats { display: flex; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
+.ns-stat { background: rgba(255,255,255,0.04); border: 1px solid var(--glass-border); border-radius: 10px; padding: 12px 18px; text-align: center; flex: 1; min-width: 80px; }
+.ns-stat-val { font-size: 24px; font-weight: 700; }
+.ns-stat-lbl { font-size: 11px; color: var(--text-secondary); }
+.ns-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.ns-table th { font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 12px; text-align: left; }
+.ns-table td { padding: 10px 12px; border-top: 1px solid rgba(255,255,255,0.05); vertical-align: middle; }
+.ns-table tr:hover td { background: rgba(255,255,255,0.03); }
+.ns-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+.ns-dot.reachable { background: #10b981; }
+.ns-dot.stale { background: #f59e0b; }
+.ns-dot.failed { background: #ef4444; }
+.ns-state { font-size: 11px; padding: 2px 8px; border-radius: 6px; }
+.ns-state.reachable { background: rgba(16,185,129,0.12); color: #10b981; }
+.ns-state.stale { background: rgba(245,158,11,0.12); color: #f59e0b; }
+.ns-state.failed { background: rgba(239,68,68,0.12); color: #ef4444; }
+.ns-loading { text-align: center; color: var(--text-secondary); padding: 40px; }
+.ns-err { color: #ef4444; font-size: 13px; text-align: center; padding: 20px; }
+.empty-state { text-align: center; color: var(--text-secondary); padding: 40px; font-size: 13px; }
+.scan-pulse { display: inline-block; animation: pulse 1s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+.ns-last-scan { font-size: 11px; color: var(--text-secondary); }
+</style>
+{% endblock %}
+{% block content %}
+<div class="ns-layout">
+  <div class="ns-card">
+    <div class="ns-header">
+      <h2>🔍 Network Scanner</h2>
+      <div class="ns-actions">
+        <button class="ns-btn" id="scanBtn" onclick="runScan()">📡 Scan Network</button>
+      </div>
+    </div>
+    <div class="ns-stats" id="nsStats">
+      <div class="ns-stat"><div class="ns-stat-val" id="statTotal">—</div><div class="ns-stat-lbl">Devices Found</div></div>
+      <div class="ns-stat"><div class="ns-stat-val" id="statReachable">—</div><div class="ns-stat-lbl">Reachable</div></div>
+      <div class="ns-stat"><div class="ns-stat-val" id="statStale">—</div><div class="ns-stat-lbl">Stale</div></div>
+    </div>
+    <div id="nsContent"><div class="ns-loading">Click "Scan Network" to discover devices on your network.</div></div>
+    <div class="ns-last-scan" id="lastScan" style="margin-top:10px"></div>
+  </div>
+
+  <div class="ns-card">
+    <h2 style="font-size:13px;font-weight:700;margin-bottom:12px">ℹ️ How NetScan Works</h2>
+    <p style="font-size:12px;color:var(--text-secondary);line-height:1.7;margin:0">
+      NetScan reads the Linux ARP neighbor table (<code style="background:rgba(255,255,255,0.08);padding:1px 5px;border-radius:4px">ip neighbor show</code>) to list devices 
+      that have recently communicated on your local network. 
+      <strong style="color:#fff">REACHABLE</strong> means the device responded recently. 
+      <strong style="color:#fff">STALE</strong> means it hasn't responded but was seen before.
+      Run this on your Raspberry Pi / hotspot to see all connected clients.
+    </p>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function(){
+  let scanning=false;
+
+  window.runScan=function(){
+    if(scanning) return;
+    scanning=true;
+    const btn=document.getElementById('scanBtn');
+    btn.disabled=true;
+    btn.innerHTML='<span class="scan-pulse">📡</span> Scanning...';
+    document.getElementById('nsContent').innerHTML='<div class="ns-loading"><span class="scan-pulse">🔍</span> Scanning network...</div>';
+
+    fetch('/app/netscan/api/netscan/devices').then(r=>r.json()).then(devices=>{
+      scanning=false;
+      btn.disabled=false;
+      btn.innerHTML='📡 Scan Network';
+      document.getElementById('lastScan').textContent='Last scan: '+new Date().toLocaleTimeString();
+      if(!devices||devices.error){
+        document.getElementById('nsContent').innerHTML='<div class="ns-err">❌ '+(devices&&devices.error?devices.error:'Failed to scan')+'</div>';
+        return;
+      }
+      const total=devices.length;
+      const reachable=devices.filter(d=>d.state==='REACHABLE').length;
+      const stale=devices.filter(d=>d.state==='STALE').length;
+      document.getElementById('statTotal').textContent=total;
+      document.getElementById('statReachable').textContent=reachable;
+      document.getElementById('statStale').textContent=stale;
+      if(!total){ document.getElementById('nsContent').innerHTML='<div class="empty-state">No devices found in ARP table.</div>'; return; }
+      document.getElementById('nsContent').innerHTML=`
+        <table class="ns-table">
+          <thead><tr><th>IP Address</th><th>MAC Address</th><th>State</th></tr></thead>
+          <tbody>${devices.map(d=>`<tr>
+            <td><strong>${d.ip}</strong></td>
+            <td style="font-family:monospace;color:var(--text-secondary)">${d.mac||'N/A'}</td>
+            <td><span class="ns-state ${(d.state||'').toLowerCase()}">${d.state||'UNKNOWN'}</span></td>
+          </tr>`).join('')}</tbody>
+        </table>`;
+    }).catch(e=>{
+      scanning=false; btn.disabled=false; btn.innerHTML='📡 Scan Network';
+      document.getElementById('nsContent').innerHTML='<div class="ns-err">❌ Error: '+e.message+'</div>';
+    });
+  };
+})();
+</script>
+{% endblock %}
