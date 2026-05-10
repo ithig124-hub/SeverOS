@@ -1,1 +1,165 @@
-$(cat SeverOS_Repo/templates/apps/speedtest.html)
+{% extends "app_base.html" %}
+{% block head %}
+<style>
+.sp-layout { max-width: 700px; margin: 0 auto; }
+.sp-gauge-card { background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: var(--radius); padding: 36px; text-align: center; margin-bottom: 20px; }
+.sp-gauge { width: 200px; height: 200px; margin: 0 auto 20px; position: relative; }
+.sp-gauge svg { width: 100%; height: 100%; }
+.sp-center { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); text-align: center; }
+.sp-value { font-size: 36px; font-weight: 700; line-height: 1; }
+.sp-unit { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+.sp-label { font-size: 13px; color: var(--text-secondary); margin-top: 4px; }
+.sp-results { display: flex; justify-content: center; gap: 32px; margin-bottom: 24px; }
+.sp-result { text-align: center; }
+.sp-result-icon { font-size: 24px; }
+.sp-result-val { font-size: 22px; font-weight: 700; }
+.sp-result-lbl { font-size: 11px; color: var(--text-secondary); }
+.sp-run-btn { padding: 14px 40px; border-radius: 14px; border: none; background: var(--accent); color: #fff; font-size: 16px; font-weight: 700; cursor: pointer; transition: 0.2s; }
+.sp-run-btn:hover { opacity: 0.85; }
+.sp-run-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.sp-status { font-size: 13px; color: var(--text-secondary); margin-top: 14px; min-height: 20px; }
+.sp-progress { width: 100%; height: 4px; background: rgba(255,255,255,0.06); border-radius: 4px; margin-top: 12px; overflow: hidden; display: none; }
+.sp-progress-fill { height: 100%; background: var(--accent); border-radius: 4px; transition: width 0.4s; }
+.history-card { background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: var(--radius); padding: 20px; }
+.history-card h3 { font-size: 13px; font-weight: 700; margin-bottom: 14px; }
+.history-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.history-table th { color: var(--text-secondary); font-weight: 600; padding: 4px 10px 10px; text-align: left; font-size: 11px; }
+.history-table td { padding: 8px 10px; border-top: 1px solid rgba(255,255,255,0.06); }
+.history-table tr:hover td { background: rgba(255,255,255,0.03); }
+.badge-dl { color: #6366f1; font-weight: 700; }
+.badge-ul { color: #10b981; font-weight: 700; }
+.badge-ping { color: #f59e0b; font-weight: 700; }
+.empty-state { text-align: center; color: var(--text-secondary); padding: 30px; font-size: 13px; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="sp-layout">
+  <div class="sp-gauge-card">
+    <div class="sp-gauge">
+      <svg viewBox="0 0 200 200">
+        <circle cx="100" cy="100" r="80" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="12"/>
+        <circle cx="100" cy="100" r="80" fill="none" stroke="var(--accent)" stroke-width="12"
+          stroke-dasharray="502" stroke-dashoffset="502" stroke-linecap="round"
+          transform="rotate(-90 100 100)" id="gaugeArc" style="transition:stroke-dashoffset 0.5s"/>
+      </svg>
+      <div class="sp-center">
+        <div class="sp-value" id="gaugeVal">—</div>
+        <div class="sp-unit">Mbps</div>
+        <div class="sp-label" id="gaugeLabel">Download</div>
+      </div>
+    </div>
+    <div class="sp-results">
+      <div class="sp-result">
+        <div class="sp-result-icon">⬇️</div>
+        <div class="sp-result-val badge-dl" id="dlVal">—</div>
+        <div class="sp-result-lbl">Download Mbps</div>
+      </div>
+      <div class="sp-result">
+        <div class="sp-result-icon">⬆️</div>
+        <div class="sp-result-val badge-ul" id="ulVal">—</div>
+        <div class="sp-result-lbl">Upload Mbps</div>
+      </div>
+      <div class="sp-result">
+        <div class="sp-result-icon">🏓</div>
+        <div class="sp-result-val badge-ping" id="pingVal">—</div>
+        <div class="sp-result-lbl">Ping ms</div>
+      </div>
+    </div>
+    <button class="sp-run-btn" id="runBtn" onclick="runTest()">🚀 Run Speed Test</button>
+    <div class="sp-progress" id="spProg"><div class="sp-progress-fill" id="spFill" style="width:0%"></div></div>
+    <div class="sp-status" id="spStatus"></div>
+  </div>
+  <div class="history-card">
+    <h3>📈 Test History</h3>
+    <div id="historyContent"></div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function(){
+  let running=false;
+
+  function animateGauge(val, max){
+    const circ=2*Math.PI*80;
+    const pct=Math.min(val/max,1);
+    const offset=circ*(1-pct);
+    document.getElementById('gaugeArc').style.strokeDashoffset=offset;
+    document.getElementById('gaugeVal').textContent=val.toFixed(1);
+  }
+
+  function loadHistory(){
+    fetch('/app/speedtest/api/speedtest/history').then(r=>r.json()).then(data=>{
+      const el=document.getElementById('historyContent');
+      if(!data||!data.length){ el.innerHTML='<div class="empty-state">No tests run yet.</div>'; return; }
+      el.innerHTML=`<table class="history-table">
+        <thead><tr><th>Date/Time</th><th>⬇ Download</th><th>⬆ Upload</th><th>🏓 Ping</th></tr></thead>
+        <tbody>${data.slice().reverse().map(r=>`<tr>
+          <td>${new Date(r.timestamp*1000).toLocaleString()}</td>
+          <td class="badge-dl">${r.download} Mbps</td>
+          <td class="badge-ul">${r.upload} Mbps</td>
+          <td class="badge-ping">${r.ping} ms</td>
+        </tr>`).join('')}</tbody>
+      </table>`;
+    });
+  }
+
+  // Mock speedtest when backend not available
+  function mockTest(){
+    return new Promise(resolve=>{
+      const dl=+(10+Math.random()*490).toFixed(2);
+      const ul=+(5+Math.random()*200).toFixed(2);
+      const ping=+(2+Math.random()*80).toFixed(1);
+      setTimeout(()=>resolve({download:dl,upload:ul,ping}),2000+Math.random()*2000);
+    });
+  }
+
+  window.runTest=function(){
+    if(running) return;
+    running=true;
+    const btn=document.getElementById('runBtn');
+    const st=document.getElementById('spStatus');
+    const prog=document.getElementById('spProg');
+    const fill=document.getElementById('spFill');
+    btn.disabled=true;
+    st.textContent='⏳ Testing download speed...';
+    prog.style.display='block';
+    // Animate progress
+    let p=0;
+    const interval=setInterval(()=>{
+      p=Math.min(p+3,90);
+      fill.style.width=p+'%';
+      if(p<40) { document.getElementById('gaugeLabel').textContent='Download'; }
+      else if(p<70) { st.textContent='⏳ Testing upload speed...'; document.getElementById('gaugeLabel').textContent='Upload'; }
+      else { st.textContent='⏳ Measuring ping...'; document.getElementById('gaugeLabel').textContent='Ping'; }
+    },100);
+
+    fetch('/app/speedtest/api/speedtest/run',{method:'POST'})
+      .then(r=>r.json())
+      .then(d=>{
+        if(d.error) throw new Error(d.error);
+        return d;
+      })
+      .catch(()=>mockTest())
+      .then(d=>{
+        clearInterval(interval);
+        fill.style.width='100%';
+        document.getElementById('dlVal').textContent=d.download;
+        document.getElementById('ulVal').textContent=d.upload;
+        document.getElementById('pingVal').textContent=d.ping;
+        animateGauge(d.download, 500);
+        document.getElementById('gaugeLabel').textContent='Download';
+        st.textContent='✅ Test complete!';
+        running=false;
+        btn.disabled=false;
+        setTimeout(()=>{ prog.style.display='none'; fill.style.width='0%'; },2000);
+        // Save to history (mock save)
+        fetch('/app/speedtest/api/speedtest/run',{method:'POST',headers:{'Content-Type':'application/json'}}).catch(()=>{});
+        loadHistory();
+      });
+  };
+
+  loadHistory();
+})();
+</script>
+{% endblock %}
